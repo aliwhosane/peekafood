@@ -303,11 +303,120 @@ Do not include any explanations, markdown formatting, or text before or after th
  * @param results - Array of CalorieBreakdownResponse objects
  * @returns The most common CalorieBreakdownResponse
  */
-function findConsensusResult(results: CalorieBreakdownResponse[]): CalorieBreakdownResponse {
+async function findConsensusResult(results: CalorieBreakdownResponse[]): Promise<CalorieBreakdownResponse> {
   if (results.length === 1) {
     return results[0];
   }
   
+  // Get the Gemini model instance from the environment
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    console.error("GEMINI_API_KEY is not defined in environment variables");
+    return findConsensusResultFallback(results); // Use fallback method if no API key
+  }
+
+  // Initialize the Gemini API client
+  const genAI = new GoogleGenerativeAI(apiKey);
+  
+  // Use the same model as in the analysis
+  const model = genAI.getGenerativeModel({
+    model: "gemini-2.0-flash",
+    safetySettings: [
+      {
+        category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+        threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+      },
+      {
+        category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+        threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+      },
+      {
+        category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+        threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+      },
+      {
+        category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+        threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+      },
+    ],
+  });
+
+  // Use the model to generate a consensus result
+  return await findConsensusResultWithModel(results, model);
+}
+
+// Asynchronous function to find consensus using the Gemini model
+async function findConsensusResultWithModel(
+  results: CalorieBreakdownResponse[], 
+  model: GenerativeModel
+): Promise<CalorieBreakdownResponse> {
+  try {
+    // Convert results to a string for the prompt
+    const resultsJson = JSON.stringify(results, null, 2);
+    
+    // Create a prompt for the model
+    const prompt = `
+I have received multiple calorie breakdown analyses for the same meal from different AI runs. 
+Please analyze these results and provide a single consensus result that represents the most accurate analysis.
+
+Here are the ${results.length} different analyses:
+${resultsJson}
+
+Please create a single consensus result by:
+1. Averaging numerical values (calories, macronutrients, confidence scores)
+2. Selecting the most common or most detailed meal descriptions
+3. Combining unique food items from different analyses
+4. Resolving any contradictions by favoring the majority opinion
+
+Return ONLY a single valid JSON object with the consensus result in exactly this format:
+{
+  "mealDescription": "string - Consensus description of the meal",
+  "totalEstimatedCalories": number - Average of all calorie estimates,
+  "items": [
+    {
+      "itemName": "string - Name of food item",
+      "quantity": "string - Quantity",
+      "calories": number - Average calories for this item,
+      "protein_g": number - Average protein,
+      "carbs_g": number - Average carbs,
+      "fat_g": number - Average fat
+    }
+  ],
+  "confidenceScore": number - Average confidence score,
+  "assumptionsMade": "string - Combined assumptions and note about consensus"
+}
+
+Return ONLY the JSON object with no additional text, explanations, or formatting.
+`;
+
+    // Call the Gemini API
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+    });
+
+    const response = result.response;
+    const responseText = response.text();
+    
+    // Process and validate the response
+    const processedResponse = await processGeminiResponse(responseText, model);
+    
+    if (processedResponse) {
+      // Add information about the consensus process
+      processedResponse.assumptionsMade = `${processedResponse.assumptionsMade || ''} (Consensus generated from ${results.length} analyses using AI)`.trim();
+      return processedResponse;
+    } else {
+      // Fallback to the original method if processing fails
+      console.error("Failed to process consensus result from Gemini, falling back to original method");
+      return findConsensusResultFallback(results);
+    }
+  } catch (error) {
+    console.error("Error generating consensus with Gemini:", error);
+    return findConsensusResultFallback(results);
+  }
+}
+
+// Original consensus finding logic as a fallback
+function findConsensusResultFallback(results: CalorieBreakdownResponse[]): CalorieBreakdownResponse {
   // Create a map to count occurrences of each result
   const resultCounts = new Map<string, { count: number, result: CalorieBreakdownResponse }>();
   
