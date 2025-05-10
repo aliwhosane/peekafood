@@ -51,6 +51,17 @@ export async function getCalorieBreakdown(
       ],
     });
 
+    // First, validate if the image is actually a food/meal photo
+    const isFood = await validateFoodImage(imageDataBase64, mimeType, model);
+    
+    if (!isFood) {
+      return {
+        error: "The uploaded image does not appear to be a food or meal photo. Please upload an image of your meal.",
+        totalEstimatedCalories: 0,
+        items: [],
+      };
+    }
+
     // Construct the prompt for Gemini with stronger emphasis on JSON format
     const prompt = `
 Your task is to analyze the provided image of a meal and the additional context and provide a detailed calorie breakdown in the form of a single, valid JSON object.
@@ -351,4 +362,55 @@ function findConsensusResult(results: CalorieBreakdownResponse[]): CalorieBreakd
   consensusResult.assumptionsMade = `${consensusResult.assumptionsMade || ''} (Based on consensus from ${maxCount}/${results.length} analyses)`.trim();
   
   return consensusResult;
+}
+
+/**
+ * Validates if the provided image contains food/meal
+ * 
+ * @param imageDataBase64 - Base64 encoded image data
+ * @param mimeType - MIME type of the image
+ * @param model - The Gemini model instance to use for validation
+ * @returns Boolean indicating if the image contains food
+ */
+async function validateFoodImage(
+  imageDataBase64: string,
+  mimeType: string,
+  model: GenerativeModel
+): Promise<boolean> {
+  try {
+    // Prepare the image part for the Gemini API
+    const imagePart = {
+      inlineData: {
+        data: imageDataBase64,
+        mimeType: mimeType,
+      },
+    };
+
+    // Create a simple prompt to check if the image contains food
+    const validationPrompt = `
+Analyze this image and determine if it contains food or a meal.
+Respond with ONLY "true" if the image contains food or a meal, or "false" if it does not.
+Do not include any other text, explanations, or formatting in your response.
+`;
+
+    // Call the Gemini API for validation
+    const validationResult = await model.generateContent({
+      contents: [{ 
+        role: "user", 
+        parts: [
+          { text: validationPrompt },
+          imagePart
+        ] 
+      }],
+    });
+
+    const validationResponse = validationResult.response.text().trim().toLowerCase();
+    
+    // Check if the response indicates the image contains food
+    return validationResponse === "true";
+  } catch (error) {
+    console.error("Error validating food image:", error);
+    // In case of error, assume it's a food image to avoid blocking legitimate attempts
+    return true;
+  }
 }
