@@ -1,6 +1,7 @@
 "use server";
 
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
+// Import the GenerativeModel type from the Google Generative AI package
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold, GenerativeModel } from "@google/generative-ai";
 import { CalorieBreakdownResponse } from "@/types";
 
 /**
@@ -183,7 +184,7 @@ Now, provide the JSON output for the meal description you were given.
  */
 async function processGeminiResponse(
   responseText: string,
-  model: any
+  model: GenerativeModel  // Use the proper type instead of any
 ): Promise<CalorieBreakdownResponse | null> {
   try {
     // Clean the response text by removing any markdown code block formatting
@@ -235,7 +236,7 @@ async function processGeminiResponse(
  */
 async function validateJsonFormat(
   response: string, 
-  model: any
+  model: GenerativeModel  // Use the proper type instead of any
 ): Promise<CalorieBreakdownResponse> {
   try {
     // Create a validation prompt
@@ -326,6 +327,7 @@ function findConsensusResult(results: CalorieBreakdownResponse[]): CalorieBreakd
   let consensusResult = results[0];
   
   for (const [_, { count, result }] of resultCounts.entries()) {
+    console.log(_, { count, result });
     if (count > maxCount) {
       maxCount = count;
       consensusResult = result;
