@@ -3,6 +3,7 @@
 // Import the GenerativeModel type from the Google Generative AI package
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold, GenerativeModel } from "@google/generative-ai";
 import { CalorieBreakdownResponse } from "@/types";
+import { saveToHistory } from '@/services/historyService';
 
 /**
  * Server action to get calorie breakdown from a meal image using Gemini API
@@ -15,7 +16,8 @@ import { CalorieBreakdownResponse } from "@/types";
 export async function getCalorieBreakdown(
   imageDataBase64: string,
   mimeType: string,
-  mealContext: string
+  mealContext: string,
+  userId?: string  // Add userId parameter
 ): Promise<CalorieBreakdownResponse> {
   try {
     // Get API key from environment variable
@@ -174,6 +176,17 @@ Now, provide the JSON output for the meal description you were given.
     // Find the most common result (consensus)
     const consensusResult = findConsensusResult(analysisResults);
     console.log("Consensus result found");
+    
+    // Save to user history if userId is provided
+    if (userId) {
+      try {
+        await saveToHistory(userId, mealContext, consensusResult, imageDataBase64);
+        console.log("Saved to user history");
+      } catch (historyError) {
+        console.error("Error saving to history:", historyError);
+        // Continue even if saving to history fails
+      }
+    }
     
     return consensusResult;
   } catch (error) {

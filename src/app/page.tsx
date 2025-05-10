@@ -7,8 +7,11 @@ import ResultsDisplay from '@/components/ResultsDisplay';
 import { getCalorieBreakdown } from './actions';
 import { CalorieBreakdownResponse } from '@/types';
 import { fileToBase64 } from '@/utils/imageUtils';
+import AuthButton from '@/components/AuthButton';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function HomePage() {
+  const { user } = useAuth(); // Use the useAuth hook to get the current user
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [mealContext, setMealContext] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -29,11 +32,12 @@ export default function HomePage() {
       // Convert image to base64
       const base64Content = await fileToBase64(selectedImage);
       
-      // Call the server action
+      // Call the server action with user ID if available
       const result = await getCalorieBreakdown(
         base64Content,
         selectedImage.type,
-        mealContext
+        mealContext,
+        user?.uid // Pass the user ID if the user is logged in
       );
       
       if (result.error) {
@@ -51,9 +55,12 @@ export default function HomePage() {
   
   return (
     <main className="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800 flex flex-col items-center p-4 sm:p-8">
-      <header className="w-full max-w-4xl mb-8 text-center">
-        <h1 className="text-4xl sm:text-5xl font-bold text-blue-600 dark:text-blue-400">PeekAFood</h1>
-        <p className="text-gray-600 dark:text-gray-300 mt-2">Get a calorie breakdown of your meal with AI!</p>
+      <header className="w-full max-w-4xl mb-8 flex justify-between items-center">
+        <div className="text-center">
+          <h1 className="text-4xl sm:text-5xl font-bold text-blue-600 dark:text-blue-400">PeekAFood</h1>
+          <p className="text-gray-600 dark:text-gray-300 mt-2">Get a calorie breakdown of your meal with AI!</p>
+        </div>
+        <AuthButton /> {/* Add the AuthButton component here */}
       </header>
       <div className="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-2 gap-8">
         <section className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-100 dark:border-gray-700">
