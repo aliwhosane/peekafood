@@ -126,7 +126,7 @@ export default function HomePage() {
         </section>
       </div>
       <footer className="mt-12 text-center text-sm text-gray-500 dark:text-gray-400">
-        <p>© {new Date().getFullYear()} PeekAFood - AI Calorie Counter</p>
+        <p>© {new Date().getFullYear()} PeekAFood - AI Calorie Counter built by Utkarsh Mehrotra and Ali Husen.</p>
       </footer>
     </main>
   );
