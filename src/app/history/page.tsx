@@ -12,6 +12,7 @@ interface HistoryItem {
   timestamp: { toDate: () => Date };
   mealContext: string;
   result: CalorieBreakdownResponse;
+  imageBase64?: string;
 }
 
 export default function HistoryPage() {
@@ -74,12 +75,23 @@ export default function HistoryPage() {
           {history.map((item) => (
             <div key={item.id} className="border rounded-lg p-4 shadow-sm">
               <div className="flex justify-between items-start">
-                <div>
-                  <h2 className="text-xl font-semibold">{item.result.mealDescription}</h2>
-                  <p className="text-gray-500 text-sm">
-                    {formatDistanceToNow(item.timestamp.toDate(), { addSuffix: true })}
-                  </p>
-                  <p className="text-gray-700 mt-1">Context: {item.mealContext}</p>
+                <div className="flex gap-4">
+                  {item.imageBase64 && (
+                    <div className="flex-shrink-0">
+                      <img 
+                        src={`data:image/jpeg;base64,${item.imageBase64}`} 
+                        alt="Meal thumbnail" 
+                        className="w-20 h-20 object-cover rounded-md"
+                      />
+                    </div>
+                  )}
+                  <div>
+                    <h2 className="text-xl font-semibold">{item.result.mealDescription}</h2>
+                    <p className="text-gray-500 text-sm">
+                      {formatDistanceToNow(item.timestamp.toDate(), { addSuffix: true })}
+                    </p>
+                    <p className="text-gray-700 mt-1">Context: {item.mealContext}</p>
+                  </div>
                 </div>
                 <button 
                   onClick={() => handleDelete(item.id)}
